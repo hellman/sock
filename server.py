@@ -37,7 +37,7 @@ class udp(inet):
         if debug: print "[i] %s Started UDP server on [%s]:%d" % (time.asctime(), self.host, self.port)
         while True:
             data, addr = self.socket.recvfrom(4096)
-            if debug: print "[i] %s Started TCP server on [%s]%d" % (time.asctime(), self.host, self.port)
+            if debug: print "[i]", time.asctime(), "Connect from %s" % (addr, )
             
             while threading.active_count() - 1 >= maxthreads:
                 if debug: sys.stderr.write("[W] WARNING: Too many threads! %d\n" % threading.active_count())
