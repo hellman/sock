@@ -10,20 +10,49 @@ __all__ = "Sock Sock6 toSock Timeout SocketError".split()
 
 DEFAULT_TIMEOUT = 5
 
-class Sock:
+"""
+Possible formats:
+127.0.0.1:3123
+127.0.0.1: 3123
+127.0.0.1|3123
+127.0.0.1/3123
+127.0.0.1 3123
+example.com:3123
+example.com:| /3123
+"""
+def parse_addr(addr, port=-1):
+    if port != -1:
+        return addr, int(port)
+    elif isinstance(addr, basestring):
+        port = re.search(r"(:| |;|/|\|)*(\d+)$", addr.strip())
+        if port:
+            addr = addr[:-len(port.group(0))]
+            return addr, int(port.group(2))
+    elif isinstance(addr, tuple):
+        return addr[0], int(addr[1])
+    raise TypeError("Can't understand address: %s %s" % (addr, port))
+
+
+# IPv4/IPv6 --------------------
+
+class AbstractSock:
     SOCKET_FAMILY = socket.AF_INET
-    def __init__(self, ip, port, timeout=None):
-        self.addr = (ip, port)
+
+    def __init__(self, addr, port=-1, timeout=None):
+        self.addr = parse_addr(addr, port)
         self.timeout = timeout
         self.buf = ""
         self.eof = False
 
-        self.sock = socket.socket(self.SOCKET_FAMILY, socket.SOCK_STREAM)
+        self.sock = socket.socket(self.SOCKET_FAMILY, self.SOCKET_TYPE)
         if timeout is None:
             self.timeout = DEFAULT_TIMEOUT
         self.sock.settimeout(timeout)
-        self.sock.connect((ip, port))
+        self._prepare()
         return
+
+    def _prepare(self):
+        raise NotImplementedError("Virtual")
 
     def read_one(self, timeout=None):
         self.fill_one(timeout)
@@ -110,30 +139,34 @@ class Sock:
         if timeout == 0:
             self.sock.setblocking(False)
             try:
-                self.buf += self.sock.recv(4096)
+                self.buf += self.recv(4096)
             except SocketError:
                 pass
             return
-        
+
         if timeout == -1:
             self.sock.settimeout(None)  # blocking, infinity timeout
         else:
             self.sock.setblocking(True)  # it's overriden by settimeout, but for clarity
             self.sock.settimeout(timeout)
-        
-        buf = self.sock.recv(4096)
+
+        buf = self.recv(4096)
         self.eof = (not buf)
         self.buf += buf
         return
 
-    def set_socket(self, sock):
-        self.sock = sock
-        return
-
-    def get_socket(self):
+    @property
+    def socket(self):
         return self.sock
 
-    def get_fileno(self):
+    @socket.setter
+    def socket(self, sock):
+        self.sock = sock
+        self.addr = self.sock.getpeername()
+        return
+
+    @property
+    def fileno(self):
         return self.sock.fileno()
 
     def write(self, s):
@@ -154,19 +187,64 @@ class Sock:
     def __del__(self):
         self.sock.close()
 
-class Sock6(Sock):
+
+class AbstractSock6(AbstractSock):
     SOCKET_FAMILY = socket.AF_INET6
+
+
+# TCP --------------------------
+
+class Sock(AbstractSock):
+    SOCKET_TYPE = socket.SOCK_STREAM
+
+    def _prepare(self):
+        self.sock.connect(self.addr)
+
+    def recv(self, bufsize):
+        return self.sock.recv(bufsize)
+
+
+class Sock6(AbstractSock6, Sock):
+    pass
+
 
 # Class to convert a socket into Sock class
 # client sockets (returned by 'accept') can be coverted too
 class toSock(Sock):
-    def __init__(self, sock, timeout=None):
-        self.timeout = timeout
-        self.buf = ""
-        self.eof = False
 
-        self.sock = sock
-        if timeout is None:
-            self.timeout = DEFAULT_TIMEOUT
-        self.sock.settimeout(timeout)
+    def __init__(self, sock, timeout=None):
+        super(toSock, self).__init__(*sock.getpeername(), timeout=timeout)
         return
+
+    def _prepare(self):
+        pass  # assume socket is connected already
+
+
+# UDP --------------------------
+
+class SockU(AbstractSock):
+    SOCKET_TYPE = socket.SOCK_DGRAM
+
+    def _prepare(self):
+        pass  # udp doesn't need connect
+
+    def recv(self, bufsize):
+        while True:
+            addr, data = self.sock.recv(bufsize)
+            if addr == self.addr:
+                return data
+            # TODO: warning about non-matching addr
+
+
+class SockU6(AbstractSock6, SockU):
+    pass
+
+
+class toSockU(SockU):
+
+    def __init__(self, sock, timeout=None):
+        super(toSockU, self).__init__(*sock.getpeername(), timeout=timeout)
+        return
+
+    def _prepare(self):
+        pass  # assume socket is connected already
