@@ -213,7 +213,9 @@ class Sock6(AbstractSock6, Sock):
 class toSock(Sock):
 
     def __init__(self, sock, timeout=None):
-        super(toSock, self).__init__(*sock.getpeername(), timeout=timeout)
+        self.sock = sock
+        a = sock.getpeername()
+        Sock.__init__(self, a[0], a[1], timeout=timeout)
         return
 
     def _prepare(self):
