@@ -6,9 +6,13 @@ import socket
 from time import time
 from socket import timeout as Timeout, error as SocketError
 
-__all__ = "Sock Sock6 toSock Timeout SocketError".split()
+__all__ = "Sock Sock6 toSock SockU SockU6 toSockU Timeout SocketError".split()
 
 DEFAULT_TIMEOUT = 5
+
+# TODO: update README (sockU)
+# TODO: tests
+# TODO: toSock6 works?
 
 """
 Possible formats:
@@ -245,7 +249,9 @@ class SockU6(AbstractSock6, SockU):
 class toSockU(SockU):
 
     def __init__(self, sock, timeout=None):
-        super(toSockU, self).__init__(*sock.getpeername(), timeout=timeout)
+        self.sock = sock
+        a = sock.getpeername()
+        SockU.__init__(self, a[0], a[1], timeout=timeout)
         return
 
     def _prepare(self):
