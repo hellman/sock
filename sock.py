@@ -16,6 +16,7 @@ TODO:
 - tests
 - check toSock6
 - udp socket write/send fix
+- think about losing socket data on EOFError
 '''
 
 
@@ -62,8 +63,14 @@ class AbstractSock(object):
     def _prepare(self):
         return NotImplemented
 
+    def recv(self):
+        return NotImplemented
+
+    def send(self):
+        return NotImplemented
+
     def read_one(self, timeout=None):
-        self.fill_one(timeout)
+        self._fill_one(timeout)
         if not self.buf and timeout != 0:
             raise EOFError("Connection closed")
         buf = self.buf
@@ -118,7 +125,7 @@ class AbstractSock(object):
             raise EOFError("Connection closed")
 
         while not cond(self):
-            self.fill_one(remaining)
+            self._fill_one(remaining)
             if cond(self):
                 return self.buf
 
@@ -135,7 +142,7 @@ class AbstractSock(object):
                     raise Timeout("read_cond timeout")
         return self.buf
 
-    def fill_one(self, timeout=None):
+    def _fill_one(self, timeout=None):
         """Read something from socket.
         timeout = -1  -  blocking until read
         timeout = 0   -  non-blocking
@@ -177,9 +184,6 @@ class AbstractSock(object):
     def fileno(self):
         return self.sock.fileno()
 
-    def send(self, s):
-        return self.sock.sendall(s)
-
     def write(self, s):
         return self.send(s)
 
@@ -210,6 +214,9 @@ class Sock(AbstractSock):
 
     def recv(self, bufsize):
         return self.sock.recv(bufsize)
+
+    def send(self, s):
+        return self.sock.sendall(s)
 
 
 class Sock6(AbstractSock6, Sock):
