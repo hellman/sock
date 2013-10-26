@@ -17,6 +17,7 @@ TODO:
 - check toSock6
 - udp socket write/send fix
 - think about losing socket data on EOFError
+- read_until_re/wait_for_re return matches?
 '''
 
 
@@ -68,6 +69,9 @@ class AbstractSock(object):
 
     def send(self):
         return NotImplemented
+
+    def read_line(self, timeout=None):
+        return self.read_until("\n", timeout=timeout)
 
     def read_one(self, timeout=None):
         self._fill_one(timeout)
