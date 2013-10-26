@@ -78,6 +78,8 @@ udp6(3123, handler).listen()
 About
 ---------------------
 
+This software uses Semantic Versioning ( http://semver.org/ )
+
 Author: hellman ( hellman1908@gmail.com )
 
 License: MIT License (http://opensource.org/licenses/MIT)
