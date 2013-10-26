@@ -10,40 +10,44 @@ __all__ = "Sock Sock6 toSock SockU SockU6 toSockU Timeout SocketError".split()
 
 DEFAULT_TIMEOUT = 5
 
-# TODO: update README (sockU)
-# TODO: tests
-# TODO: toSock6 works?
+'''
+TODO:
+- update README (sockU)
+- tests
+- check toSock6
+- udp socket write/send fix
+'''
 
-"""
-Possible formats:
-127.0.0.1:3123
-127.0.0.1: 3123
-127.0.0.1|3123
-127.0.0.1/3123
-127.0.0.1 3123
-example.com:3123
-example.com:| /3123
-"""
-def parse_addr(addr, port=-1):
-    if port != -1:
-        return addr, int(port)
-    elif isinstance(addr, basestring):
+
+def parse_addr(addr):
+    """
+    Possible formats:
+        127.0.0.1:3123
+        127.0.0.1: 3123
+        127.0.0.1|3123
+        127.0.0.1/3123
+        127.0.0.1 3123
+        example.com:3123
+        example.com:| /3123
+    """
+    if isinstance(addr, basestring):
         port = re.search(r"(:| |;|/|\|)*(\d+)$", addr.strip())
         if port:
             addr = addr[:-len(port.group(0))]
             return addr, int(port.group(2))
     elif isinstance(addr, tuple):
         return addr[0], int(addr[1])
-    raise TypeError("Can't understand address: %s %s" % (addr, port))
+
+    raise TypeError("Can't understand address: %s" % addr)
 
 
 # IPv4/IPv6 --------------------
 
-class AbstractSock:
+class AbstractSock(object):
     SOCKET_FAMILY = socket.AF_INET
 
-    def __init__(self, addr, port=-1, timeout=None):
-        self.addr = parse_addr(addr, port)
+    def __init__(self, addr, timeout=None):
+        self.addr = parse_addr(addr)
         self.timeout = timeout
         self.buf = ""
         self.eof = False
@@ -56,7 +60,7 @@ class AbstractSock:
         return
 
     def _prepare(self):
-        raise NotImplementedError("Virtual")
+        return NotImplemented
 
     def read_one(self, timeout=None):
         self.fill_one(timeout)
@@ -137,7 +141,7 @@ class AbstractSock:
         timeout = 0   -  non-blocking
         timeout = N   -  blocking until read or timeout
         """
-        if timeout == None:
+        if timeout is None:
             timeout = self.timeout
 
         if timeout == 0:
@@ -173,11 +177,11 @@ class AbstractSock:
     def fileno(self):
         return self.sock.fileno()
 
-    def write(self, s):
-        return self.sock.sendall(s)
-
     def send(self, s):
         return self.sock.sendall(s)
+
+    def write(self, s):
+        return self.send(s)
 
     def shut_wr(self):
         self.sock.shutdown(socket.SHUT_WR)
@@ -215,11 +219,14 @@ class Sock6(AbstractSock6, Sock):
 # Class to convert a socket into Sock class
 # client sockets (returned by 'accept') can be coverted too
 class toSock(Sock):
-
+    '''
+    Class to convert a socket into Sock class
+    client sockets (returned by 'accept') can be coverted too
+    '''
     def __init__(self, sock, timeout=None):
         self.sock = sock
         a = sock.getpeername()
-        Sock.__init__(self, a[0], a[1], timeout=timeout)
+        super(toSock, self).__init__(a[0], a[1], timeout=timeout)
         return
 
     def _prepare(self):
@@ -241,6 +248,9 @@ class SockU(AbstractSock):
                 return data
             # TODO: warning about non-matching addr
 
+    def send(self, s):
+        return NotImplemented
+
 
 class SockU6(AbstractSock6, SockU):
     pass
@@ -251,7 +261,7 @@ class toSockU(SockU):
     def __init__(self, sock, timeout=None):
         self.sock = sock
         a = sock.getpeername()
-        SockU.__init__(self, a[0], a[1], timeout=timeout)
+        super(toSockU, self).__init__(a[0], a[1], timeout=timeout)
         return
 
     def _prepare(self):
