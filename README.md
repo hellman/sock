@@ -12,14 +12,14 @@ Simple threaded tcp/udp servers - kind of simplified SocketServer http://docs.py
 Usage
 ---------------------
 
-###TCP Client 
+###TCP Client
 
 ```python
 from sock import *
 
-f = Sock("some.cool.servi.ce", 3123, timeout=10)
+f = Sock("some.cool.servi.ce:3123", timeout=10)
 # or IPv6
-f = Sock6("::1", 3123, 3)
+f = Sock6("::1 3123", 3)
 # or already existing socket
 f = toSock(some_socket)
 
@@ -80,4 +80,4 @@ About
 
 Author: hellman ( hellman1908@gmail.com )
 
-License: GNU General Public License v2 (http://opensource.org/licenses/gpl-2.0.php)
+License: MIT License (http://opensource.org/licenses/MIT)
