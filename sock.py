@@ -263,13 +263,13 @@ class UDPMixIn(object):
 
     def recv(self, bufsize):
         while True:
-            addr, data = self.sock.recv(bufsize)
+            data, addr = self.sock.recvfrom(bufsize)
             if addr == self.addr:
                 return data
             # TODO: warning about non-matching addr
 
     def send(self, s):
-        return NotImplemented
+        return self.sock.sendto(s, self.addr)
 
 
 class Sock(TCPMixIn, IPv4Mixin, AbstractSock):
