@@ -66,15 +66,14 @@ def parse_addr(addr, port=None):
     return _host, _port
 
 
-# IPv4/IPv6 --------------------
-
 class AbstractSock(object):
     """
     SomeSock("127.0.0.1", 3123, timeout=15)
     - timeout should be given using implicit keyword
     """
 
-    SOCKET_FAMILY = socket.AF_INET
+    SOCKET_FAMILY = NotImplemented
+    SOCKET_TYPE = NotImplemented
 
     def __init__(self, *addr, **timeout_dict):
         self.addr = parse_addr(*addr)
@@ -235,13 +234,15 @@ class AbstractSock(object):
         self.sock.close()
 
 
-class AbstractSock6(AbstractSock):
+class IPv4Mixin(object):
+    SOCKET_FAMILY = socket.AF_INET
+
+
+class IPv6Mixin(object):
     SOCKET_FAMILY = socket.AF_INET6
 
 
-# TCP --------------------------
-
-class Sock(AbstractSock):
+class TCPMixIn(object):
     SOCKET_TYPE = socket.SOCK_STREAM
 
     def _prepare(self):
@@ -254,30 +255,7 @@ class Sock(AbstractSock):
         return self.sock.sendall(s)
 
 
-class Sock6(AbstractSock6, Sock):
-    pass
-
-
-# Class to convert a socket into Sock class
-# client sockets (returned by 'accept') can be coverted too
-class toSock(Sock):
-    '''
-    Class to convert a socket into Sock class
-    client sockets (returned by 'accept') can be coverted too
-    '''
-    def __init__(self, sock, timeout=None):
-        self.sock = sock
-        a = sock.getpeername()
-        super(toSock, self).__init__((a[0], a[1]), timeout=timeout)
-        return
-
-    def _prepare(self):
-        pass  # assume socket is connected already
-
-
-# UDP --------------------------
-
-class SockU(AbstractSock):
+class UDPMixIn(object):
     SOCKET_TYPE = socket.SOCK_DGRAM
 
     def _prepare(self):
@@ -294,8 +272,35 @@ class SockU(AbstractSock):
         return NotImplemented
 
 
-class SockU6(AbstractSock6, SockU):
+class Sock(TCPMixIn, IPv4Mixin, AbstractSock):
     pass
+
+
+class Sock6(TCPMixIn, IPv6Mixin, AbstractSock):
+    pass
+
+
+class SockU(UDPMixIn, IPv4Mixin, AbstractSock):
+    pass
+
+
+class SockU6(UDPMixIn, IPv6Mixin, AbstractSock):
+    pass
+
+
+class toSock(Sock):
+    '''
+    Class to convert a socket into Sock class
+    client sockets (returned by 'accept') can be coverted too
+    '''
+    def __init__(self, sock, timeout=None):
+        self.sock = sock
+        a = sock.getpeername()
+        super(toSock, self).__init__((a[0], a[1]), timeout=timeout)
+        return
+
+    def _prepare(self):
+        pass  # assume socket is connected already
 
 
 class toSockU(SockU):
