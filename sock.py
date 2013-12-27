@@ -114,65 +114,71 @@ class AbstractSock(object):
         self._fill_one(timeout)
         if not self.buf and timeout != 0:
             raise EOFError("Connection closed")
-        buf = self.buf
+        res = self.buf
         self.buf = ""
-        return buf
+        return res
 
     def read_all(self, timeout=None):
         """
         Read everything from socket (the other side should close socket before timeout)
         """
-        res = self.read_cond(lambda x: x.eof, timeout)
+        self.read_cond(lambda x: x.eof, timeout)
+        res = self.buf
         self.buf = ""
         return res
 
-    def wait_for(self, s, timeout=None):
+    def skip_until(self, s, timeout=None):
         """
-        Wait for string in dataflow, stop before string
+        Skip everything until first occurence of string @s, stop before occurence.
+        Return nothing.
         """
         self.read_cond(lambda x: s in x.buf, timeout)
-        pos = self.buf.find(s)
-        self.buf = self.buf[pos:]
+        start = self.buf.find(s)
+        self.buf = self.buf[start:]
         return
 
-    def wait_for_re(self, r, timeout=None):
+    def skip_until_re(self, r, timeout=None):
         """
-        Wait for regexp in dataflow, stop before match
+        Skip everything until first match of regexp @r, stop before match.
+        Return match.
         """
-        self.read_cond(lambda x: re.search(r, x.buf), timeout)
-        s = re.search(r, self.buf).group(0)
-        pos = self.buf.find(s)
-        self.buf = self.buf[pos:]
-        return
+        match = self.read_cond(lambda x: re.search(r, x.buf), timeout)
+        self.buf = self.buf[match.start():]
+        return match
 
     def read_until(self, s, timeout=None):
         """
-        Read everything until first occurence of @s, stop after occurence
+        Read everything until first occurence of string @s, stop after occurence.
+        Return everything before @s, and @s.
         """
-        res = self.read_cond(lambda x: s in x.buf, timeout)
-        pos = res.find(s) + len(s)
-        self.buf = self.buf[pos:]
-        return res[:pos]
+        self.read_cond(lambda x: s in x.buf, timeout)
+        end = self.buf.find(s) + len(s)
+        res = self.buf[:end]
+        self.buf = self.buf[end:]
+        return res
 
     def read_until_re(self, r, timeout=None):
         """
-        Read everything until first match of @r, stop after match
+        Read everything until first match of regexp @r, stop after match.
+        Return match.
+        Note: if you need the data before match, you can make group (.*?) for that:
+            r1 = r"(\d) coins"
+            r2 = r"(.*?)(\d coins)"
         """
-        res = self.read_cond(lambda x: re.search(r, x.buf), timeout)
-        s = re.search(r, res).group(0)
-        pos = res.find(s) + len(s)
-        self.buf = res[pos:]
-        return res[:pos]
+        match = self.read_cond(lambda x: re.search(r, x.buf), timeout)
+        self.buf = self.buf[match.end():]
+        return match
 
     def read_nbytes(self, n, timeout=None):
-        res = self.read_cond(lambda x: len(x.buf) >= n, timeout)
-        self.buf = res[n:]
-        return res[:n]
+        self.read_cond(lambda x: len(x.buf) >= n, timeout)
+        self.buf, res = self.buf[n:], self.buf[:n]
+        return res
 
     def read_cond(self, cond, timeout=None):
         """
-        Read bytes while @cond(self) is False. Return (not flush) full buffer.
-        self.buf should be cropped by caller, if needed
+        Read bytes while @cond(self) is False. Return @cond return.
+        self.buf should be analyzed/cropped by caller, if needed
+        (this is rather low-level function, helper)
         """
         time_start = time()
         remaining = timeout
@@ -182,10 +188,14 @@ class AbstractSock(object):
         if self.eof and not self.buf:
             raise EOFError("Connection closed")
 
-        while not cond(self):
+        res = cond(self)
+
+        while not res:
             self._fill_one(remaining)
-            if cond(self):
-                return self.buf
+
+            res = cond(self)
+            if res:
+                break
 
             if self.eof:
                 raise EOFError("Connection closed")
@@ -198,7 +208,8 @@ class AbstractSock(object):
                 remaining = time_start + timeout - time()
                 if remaining <= 0:
                     raise Timeout("read_cond timeout")
-        return self.buf
+
+        return res
 
     def _fill_one(self, timeout=None):
         """Read something from socket.
