@@ -15,7 +15,7 @@ from sock import *
 
 f = Sock("some.cool.servi.ce:3123", timeout=10)
 # or IPv6
-f = Sock6("::1 3123", 3)
+f = Sock6("::1 3123", timeout=3)
 # or already existing socket
 f = toSock(some_socket)
 
