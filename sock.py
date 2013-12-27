@@ -9,6 +9,7 @@ from socket import timeout as Timeout, error as SocketError
 __all__ = "Sock Sock6 toSock SockU SockU6 toSockU Timeout SocketError".split()
 
 DEFAULT_TIMEOUT = 5
+PORT_REGEXP = re.compile(r"(:| |;|/|\|)+(?P<port>\d+)$")
 
 '''
 TODO:
@@ -21,43 +22,71 @@ TODO:
 '''
 
 
-def parse_addr(addr):
+def parse_addr(addr, port=None):
     """
-    Possible formats:
-        127.0.0.1:3123
-        127.0.0.1: 3123
-        127.0.0.1|3123
-        127.0.0.1/3123
-        127.0.0.1 3123
-        example.com:3123
-        example.com:| /3123
-    """
-    if isinstance(addr, basestring):
-        port = re.search(r"(:| |;|/|\|)*(\d+)$", addr.strip())
-        if port:
-            addr = addr[:-len(port.group(0))]
-            return addr, int(port.group(2))
-    elif isinstance(addr, tuple):
-        return addr[0], int(addr[1])
+    If port is embedded in addr string, it should be delimited with one or more of:
+        " :;|/"
 
-    raise TypeError("Can't understand address: %s" % addr)
+    Examples:
+        parse_addr("localhost", 3123)
+        parse_addr(("localhost", 3123))
+        parse_addr("127.0.0.1:3123")
+        parse_addr("127.0.0.1: 3123")
+        parse_addr("127.0.0.1|3123")
+        parse_addr("127.0.0.1/3123")
+        parse_addr("127.0.0.1 3123")
+        parse_addr("example.com:3123")
+        parse_addr("example.com:| /3123")
+    """
+    _host = None
+    _port = None
+
+    if port is not None:
+        _host = addr
+        _port = int(port)
+
+    elif isinstance(addr, tuple):
+        _host = addr[0]
+        _port = int(addr[1])
+
+    elif isinstance(addr, basestring):
+        match = PORT_REGEXP.search(addr.strip())
+        if match:
+            _host = addr[:match.start()]
+            _port = int(match.group("port"))
+
+    if _host is None or _port is None:
+        raise TypeError("Can't understand address: addr=%s, port=%s" % (addr, port))
+
+    if not isinstance(_host, basestring):
+        raise TypeError("Host should be string")
+
+    return _host, _port
 
 
 # IPv4/IPv6 --------------------
 
 class AbstractSock(object):
+    """
+    SomeSock("127.0.0.1", 3123, timeout=15)
+    - timeout should be given using implicit keyword
+    """
+
     SOCKET_FAMILY = socket.AF_INET
 
-    def __init__(self, addr, timeout=None):
-        self.addr = parse_addr(addr)
-        self.timeout = timeout
+    def __init__(self, *addr, **timeout_dict):
+        self.addr = parse_addr(*addr)
+
+        # python2 does not allow (*args, timeout=None) :(
+        self.timeout = float(timeout_dict.pop("timeout", DEFAULT_TIMEOUT))
+        if timeout_dict:
+            raise TypeError("Only timeout should be given through keyword args")
+
         self.buf = ""
         self.eof = False
 
         self.sock = socket.socket(self.SOCKET_FAMILY, self.SOCKET_TYPE)
-        if timeout is None:
-            self.timeout = DEFAULT_TIMEOUT
-        self.sock.settimeout(timeout)
+        self.sock.settimeout(self.timeout)
         self._prepare()
         return
 
