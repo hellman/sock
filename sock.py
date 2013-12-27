@@ -61,6 +61,8 @@ def parse_addr(addr, port=None):
     if not isinstance(_host, basestring):
         raise TypeError("Host should be string")
 
+    # strip IPv6 brackets
+    _host = _host.strip("[]")
     return _host, _port
 
 

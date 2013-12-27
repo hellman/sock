@@ -22,7 +22,7 @@ class TestParseAddr(unittest.TestCase):
 
     def test_good(self):
         for host, port in product(self.HOSTS, self.PORTS):
-            good = (host, port)
+            good = (host.strip("[]"), port)
 
             self.assertEqual( parse_addr(host, port), good)
             self.assertEqual( parse_addr((host, port)), good)
