@@ -74,6 +74,7 @@ class AbstractSock(object):
 
     SOCKET_FAMILY = NotImplemented
     SOCKET_TYPE = NotImplemented
+    RECV_SIZE = 4096
 
     def __init__(self, *addr, **timeout_dict):
         self.addr = parse_addr(*addr)
@@ -104,6 +105,12 @@ class AbstractSock(object):
         return self.read_until("\n", timeout=timeout)
 
     def read_one(self, timeout=None):
+        """
+        Read something from socket
+        timeout = -1  - wait until something new in socket
+        timeout = 0   - return cached buffer + socket buffer immediately
+        timeout = N   - wait N seconds until something new in socket, else raise TimeoutError
+        """
         self._fill_one(timeout)
         if not self.buf and timeout != 0:
             raise EOFError("Connection closed")
@@ -112,19 +119,26 @@ class AbstractSock(object):
         return buf
 
     def read_all(self, timeout=None):
+        """
+        Read everything from socket (the other side should close socket before timeout)
+        """
         res = self.read_cond(lambda x: x.eof, timeout)
         self.buf = ""
         return res
 
     def wait_for(self, s, timeout=None):
-        """Wait for string in dataflow, DO NOT return data (to avoid splitting data)"""
+        """
+        Wait for string in dataflow, stop before string
+        """
         self.read_cond(lambda x: s in x.buf, timeout)
         pos = self.buf.find(s)
         self.buf = self.buf[pos:]
         return
 
     def wait_for_re(self, r, timeout=None):
-        """Wait for RE in dataflow, DO NOT return data (to avoid splitting data)"""
+        """
+        Wait for regexp in dataflow, stop before match
+        """
         self.read_cond(lambda x: re.search(r, x.buf), timeout)
         s = re.search(r, self.buf).group(0)
         pos = self.buf.find(s)
@@ -132,12 +146,18 @@ class AbstractSock(object):
         return
 
     def read_until(self, s, timeout=None):
+        """
+        Read everything until first occurence of @s, stop after occurence
+        """
         res = self.read_cond(lambda x: s in x.buf, timeout)
         pos = res.find(s) + len(s)
         self.buf = self.buf[pos:]
         return res[:pos]
 
     def read_until_re(self, r, timeout=None):
+        """
+        Read everything until first match of @r, stop after match
+        """
         res = self.read_cond(lambda x: re.search(r, x.buf), timeout)
         s = re.search(r, res).group(0)
         pos = res.find(s) + len(s)
@@ -150,6 +170,10 @@ class AbstractSock(object):
         return res[:n]
 
     def read_cond(self, cond, timeout=None):
+        """
+        Read bytes while @cond(self) is False. Return (not flush) full buffer.
+        self.buf should be cropped by caller, if needed
+        """
         time_start = time()
         remaining = timeout
         if timeout is None:
@@ -188,8 +212,9 @@ class AbstractSock(object):
         if timeout == 0:
             self.sock.setblocking(False)
             try:
-                self.buf += self.recv(4096)
+                self.buf += self.recv(self.RECV_SIZE)
             except SocketError:
+                # WHAT?
                 pass
             return
 
@@ -199,7 +224,7 @@ class AbstractSock(object):
             self.sock.setblocking(True)  # it's overriden by settimeout, but for clarity
             self.sock.settimeout(timeout)
 
-        buf = self.recv(4096)
+        buf = self.recv(self.RECV_SIZE)
         self.eof = (not buf)
         self.buf += buf
         return
