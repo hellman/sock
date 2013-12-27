@@ -4,7 +4,7 @@ import unittest
 
 from itertools import product
 
-from sock import parse_addr, Sock, Sock6
+from sock import parse_addr, Sock, Sock6, SockU, SockU6
 
 
 class TestParseAddr(unittest.TestCase):
@@ -41,14 +41,25 @@ class TestParseAddr(unittest.TestCase):
 
 
 class TestConnects(unittest.TestCase):
-    HOSTS = "google.com".strip().split()
+    HTTP_HOSTS = "google.com".strip().split()
+    DNS_HOSTS = "8.8.8.8".strip().split()
 
     def test_http(self):
-        for host in self.HOSTS:
+        for host in self.HTTP_HOSTS:
             f = Sock(host, 80)
             f.send("GET / HTTP/1.1\r\n\r\n")
             line = f.read_line()
             self.assertTrue(line.startswith("HTTP/1.1 "))
+            f.close()
+
+    def test_dns(self):
+        query = "241a010000010000000000000377777706676f6f676c6503636f6d0000010001".decode("hex")
+        google_ip_prefix = "\x4a\x7d\x8f"
+        for host in self.DNS_HOSTS:
+            f = SockU(host, 53)
+            f.send(query)
+            line = f.read_one()
+            self.assertIn(google_ip_prefix, line)
             f.close()
 
 
