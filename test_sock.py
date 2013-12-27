@@ -4,7 +4,7 @@ import unittest
 
 from itertools import product
 
-from sock import parse_addr
+from sock import parse_addr, Sock, Sock6
 
 
 class TestParseAddr(unittest.TestCase):
@@ -38,6 +38,18 @@ class TestParseAddr(unittest.TestCase):
         for host, port in product(self.HOSTS, self.PORTS):
             self.assertRaises(TypeError, parse_addr, (host, port), port)
             self.assertRaises(TypeError, parse_addr, (host,), port)
+
+
+class TestConnects(unittest.TestCase):
+    HOSTS = "google.com".strip().split()
+
+    def test_http(self):
+        for host in self.HOSTS:
+            f = Sock(host, 80)
+            f.send("GET / HTTP/1.1\r\n\r\n")
+            line = f.read_line()
+            self.assertTrue(line.startswith("HTTP/1.1 "))
+            f.close()
 
 
 if __name__ == "__main__":
