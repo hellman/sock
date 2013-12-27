@@ -1,13 +1,9 @@
 sock
 ====================
 
-Small scripts to simplify network communication.
+Small script to simplify network communication.
+Something like telnetlib http://docs.python.org/library/telnetlib.html, but for clean TCP/UDP (no command sequences, \r\n newlines, etc.)
 
-### TCP client:
-Something like telnetlib http://docs.python.org/library/telnetlib.html, but for clean TCP (no command sequences, \r\n newlines, etc.)
-
-### TCP/UDP binders
-Simple threaded tcp/udp servers - kind of simplified SocketServer http://docs.python.org/library/socketserver.html.
 
 Usage
 ---------------------
@@ -46,33 +42,6 @@ print f.read_one(0)
 
 # read until disconnect
 print f.read_all()
-```
-
-###TCP binder
-
-```python
-from server import *
-
-def handler(client, addr):
-	client.send("Hello, I'm server!\n")
-	client.send(client.recv(4096))
-
-tcp(3123, handler).listen()
-# or IPv6
-tcp6(3123, handler).listen()
-```
-
-###UDP binder
-
-```python
-from server import *
-
-def handler(sock, data, addr):
-	sock.sendto("Hello, I'm server!\n" + data, addr)
-
-udp(3123, handler).listen()
-# or IPv6
-udp6(3123, handler).listen()
 ```
 
 About
