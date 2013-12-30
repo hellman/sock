@@ -20,17 +20,19 @@ f = Sock6("::1 3123", timeout=3)
 f = toSock(some_socket)
 
 # wait for prompt (skip banner for example)
-# the prompt itself will be skipped too
+# the prompt itself will be skipped (and returned) too
 f.read_until("> ", timeout=3)  # read_until_re also exists
 
 f.send("flip coin\n")
 
-# wait for regexp
-# 'wait' means that the match won't be skipped
-f.wait_for_re(r"You've got (heads|tails)")    # wait_for also exists
+# skip until regexp
+match = f.skip_until_re(r"You've got (heads|tails)")    # skip_until also exists
+result1 = match.group(1)
 
 # read specific number of bytes
-result = f.read_nbytes(11+5)[11:16]
+result2 = f.read_nbytes(11+5)[11:16]
+
+assert result1 == result2
 
 f.send("random please\n")
 
