@@ -101,6 +101,9 @@ class AbstractSock(object):
     def send(self):
         return NotImplemented
 
+    def send_line(self, line):
+        return self.send(line + "\n")
+
     def read_line(self, timeout=None):
         return self.read_until("\n", timeout=timeout)
 
