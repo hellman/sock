@@ -54,12 +54,12 @@ class TestConnects(unittest.TestCase):
 
     def test_dns(self):
         query = "241a010000010000000000000377777706676f6f676c6503636f6d0000010001".decode("hex")
-        google_ip_prefix = "\x4a\x7d\x8f"
+        marker = "\x03www\x06google\x03com"
         for host in self.DNS_HOSTS:
             f = SockU(host, 53)
             f.send(query)
             line = f.read_one()
-            self.assertIn(google_ip_prefix, line)
+            self.assertIn(marker, line)
             f.close()
 
 
