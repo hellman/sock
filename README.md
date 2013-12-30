@@ -34,7 +34,8 @@ result2 = f.read_nbytes(11+5)[11:16]
 
 assert result1 == result2
 
-f.send("random please\n")
+# alias for f.send(s + "\n")
+f.send_line("random please")
 
 # read one packet and flush buffers
 print f.read_one()
