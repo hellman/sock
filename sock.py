@@ -3,6 +3,8 @@
 
 import re
 import socket
+import telnetlib
+
 from time import time
 from socket import timeout as Timeout, error as SocketError
 
@@ -271,6 +273,11 @@ class AbstractSock(object):
 
     def __del__(self):
         self.sock.close()
+
+    def interact(self):
+        t = telnetlib.Telnet()
+        t.sock = self.sock
+        return t.interact()
 
 
 class IPv4Mixin(object):
