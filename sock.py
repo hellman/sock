@@ -160,14 +160,14 @@ class AbstractSock(object):
         self.buf = self.buf[start:]
         return
 
-    def skip_until_re(self, r, timeout=None):
+    def skip_until_re(self, r, flags=0, timeout=None):
         """
         Skip everything until first match of regexp @r, stop before match.
         Return match.
         """
-        match = self.read_cond(lambda x: re.search(r, x.buf), timeout)
+        match = self.read_cond(lambda x: re.search(r, x.buf, flags=flags), timeout)
         self.buf = self.buf[match.start():]
-        return match
+        return match if len(match.groups()) > 1 else match.group(len(match.groups()))
 
     def read_until(self, s, timeout=None):
         """
@@ -180,7 +180,7 @@ class AbstractSock(object):
         self.buf = self.buf[end:]
         return res
 
-    def read_until_re(self, r, timeout=None):
+    def read_until_re(self, r, flags=0, timeout=None):
         """
         Read everything until first match of regexp @r, stop after match.
         Return match.
@@ -188,9 +188,9 @@ class AbstractSock(object):
             r1 = r"(\d) coins"
             r2 = r"(.*?)(\d coins)"
         """
-        match = self.read_cond(lambda x: re.search(r, x.buf), timeout)
+        match = self.read_cond(lambda x: re.search(r, x.buf, flags=flags), timeout)
         self.buf = self.buf[match.end():]
-        return match
+        return match if len(match.groups()) > 1 else match.group(len(match.groups()))
 
     def read_nbytes(self, n, timeout=None):
         self.read_cond(lambda x: len(x.buf) >= n, timeout)
