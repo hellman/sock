@@ -71,7 +71,7 @@ def parse_addr(addr, port=None):
 class AbstractSock(object):
     """
     SomeSock("127.0.0.1", 3123, timeout=15)
-    - timeout should be given using implicit keyword
+    - timeout should be given using explicit keyword
     """
 
     SOCKET_FAMILY = NotImplemented
@@ -91,10 +91,28 @@ class AbstractSock(object):
 
         self.sock = socket.socket(self.SOCKET_FAMILY, self.SOCKET_TYPE)
         self.sock.settimeout(self.timeout)
-        self._prepare()
+        self._connect()
         return
 
-    def _prepare(self):
+    @classmethod
+    def from_socket(cls, sock, timeout=None):
+        self = object.__new__(cls)
+        self.addr = sock.getpeername()
+        self.sock = sock
+
+        assert self.SOCKET_TYPE == sock.type
+
+        if timeout is not None:
+            self.timeout = float(timeout)
+            self.sock.settimeout(self.timeout)
+        else:
+            self.timeout = self.sock.gettimeout()
+
+        self.buf = ""
+        self.eof = False
+        return self
+
+    def _connect(self):
         return NotImplemented
 
     def recv(self):
@@ -249,12 +267,6 @@ class AbstractSock(object):
     def socket(self):
         return self.sock
 
-    @socket.setter
-    def socket(self, sock):
-        self.sock = sock
-        self.addr = self.sock.getpeername()
-        return
-
     @property
     def fileno(self):
         return self.sock.fileno()
@@ -291,7 +303,7 @@ class IPv6Mixin(object):
 class TCPMixIn(object):
     SOCKET_TYPE = socket.SOCK_STREAM
 
-    def _prepare(self):
+    def _connect(self):
         self.sock.connect(self.addr)
 
     def recv(self, bufsize):
@@ -304,7 +316,7 @@ class TCPMixIn(object):
 class UDPMixIn(object):
     SOCKET_TYPE = socket.SOCK_DGRAM
 
-    def _prepare(self):
+    def _connect(self):
         pass  # udp doesn't need connect
 
     def recv(self, bufsize):
@@ -334,28 +346,5 @@ class SockU6(UDPMixIn, IPv6Mixin, AbstractSock):
     pass
 
 
-class toSock(Sock):
-    '''
-    Class to convert a socket into Sock class
-    client sockets (returned by 'accept') can be coverted too
-    '''
-    def __init__(self, sock, timeout=None):
-        self.sock = sock
-        a = sock.getpeername()
-        super(toSock, self).__init__((a[0], a[1]), timeout=timeout)
-        return
-
-    def _prepare(self):
-        pass  # assume socket is connected already
-
-
-class toSockU(SockU):
-
-    def __init__(self, sock, timeout=None):
-        self.sock = sock
-        a = sock.getpeername()
-        super(toSockU, self).__init__(a[0], a[1], timeout=timeout)
-        return
-
-    def _prepare(self):
-        pass  # assume socket is connected already
+toSock = Sock.from_socket
+toSockU = SockU.from_socket
