@@ -10,17 +10,16 @@ from socket import timeout as Timeout, error as SocketError
 
 __all__ = "Sock Sock6 toSock SockU SockU6 toSockU Timeout SocketError".split()
 
-DEFAULT_TIMEOUT = 5
+DEFAULT_TIMEOUT = 10
 PORT_REGEXP = re.compile(r"(:| |;|/|\|)+(?P<port>\d+)$")
 
 '''
 TODO:
-- update README (sockU)
 - tests
-- check toSock6
-- udp socket write/send fix
+- check Sock6/toSock6
+- read_until(_re) accept list also
 - think about losing socket data on EOFError
-- read_until_re/wait_for_re return matches?
+- quick fail mode? if exploit fails, read_until("$ ") will wait the whole timeout;
 '''
 
 
