@@ -1,17 +1,16 @@
-sock
-====================
+# sock
 
 Small script to simplify network communication.
 Something like telnetlib http://docs.python.org/library/telnetlib.html, but for clean TCP/UDP (no command sequences, \r\n newlines, etc.)
 
 
-Usage
----------------------
+## Usage
 
-###TCP Client
+### TCP Client
 
 ```python
-from sock import *
+from sock import * # python2
+from sock3 import * # python3
 
 f = Sock("some.cool.servi.ce:3123", timeout=10)
 # or IPv6
@@ -53,8 +52,6 @@ print f.read_all()
 
 About
 ---------------------
-
-This software uses Semantic Versioning ( http://semver.org/ )
 
 Author: hellman ( hellman1908@gmail.com )
 
