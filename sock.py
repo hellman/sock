@@ -1,16 +1,27 @@
-#!/usr/bin/env python
-#-*- coding:utf-8 -*-
+# python3-version of Sock
 
 import re
+import ssl
+import sys
 import socket
 import telnetlib
 
 from time import time
 from socket import timeout as Timeout, error as SocketError
 
+def Bytes(s):
+    if isinstance(s, str): return s.encode("ascii")
+    assert isinstance(s, bytes)
+    return s
+
+def Str(s):
+    if isinstance(s, bytes): return s.decode("ascii")
+    assert isinstance(s, str)
+    return s
+
 __all__ = "Sock Sock6 toSock SockU SockU6 toSockU Timeout SocketError".split()
 
-DEFAULT_TIMEOUT = 10
+DEFAULT_TIMEOUT = 30
 PORT_REGEXP = re.compile(r"(:| |;|/|\|)+(?P<port>\d+)$")
 
 '''
@@ -20,6 +31,7 @@ TODO:
 - read_until(_re) accept list also
 - think about losing socket data on EOFError
 - quick fail mode? if exploit fails, read_until("$ ") will wait the whole timeout;
+- pexpect like read_until ( https://pexpect.readthedocs.org/en/latest/api/pexpect.html )
 '''
 
 
@@ -50,7 +62,7 @@ def parse_addr(addr, port=None):
         _host = addr[0]
         _port = int(addr[1])
 
-    elif isinstance(addr, basestring):
+    elif isinstance(addr, str):
         match = PORT_REGEXP.search(addr.strip())
         if match:
             _host = addr[:match.start()]
@@ -59,7 +71,7 @@ def parse_addr(addr, port=None):
     if _host is None or _port is None:
         raise TypeError("Can't understand address: addr=%s, port=%s" % (addr, port))
 
-    if not isinstance(_host, basestring):
+    if not isinstance(_host, str):
         raise TypeError("Host should be string")
 
     # strip IPv6 brackets
@@ -85,7 +97,7 @@ class AbstractSock(object):
         if timeout_dict:
             raise TypeError("Only timeout should be given through keyword args")
 
-        self.buf = ""
+        self.buf = b""
         self.eof = False
 
         self.sock = socket.socket(self.SOCKET_FAMILY, self.SOCKET_TYPE)
@@ -107,7 +119,7 @@ class AbstractSock(object):
         else:
             self.timeout = self.sock.gettimeout()
 
-        self.buf = ""
+        self.buf = b""
         self.eof = False
         return self
 
@@ -121,10 +133,10 @@ class AbstractSock(object):
         return NotImplemented
 
     def send_line(self, line):
-        return self.send(line + "\n")
+        return self.send(Bytes(line) + b"\n")
 
     def read_line(self, timeout=None):
-        return self.read_until("\n", timeout=timeout)
+        return self.read_until(b"\n", timeout=timeout)
 
     def read_one(self, timeout=None):
         """
@@ -137,7 +149,7 @@ class AbstractSock(object):
         if not self.buf and timeout != 0:
             raise EOFError("Connection closed")
         res = self.buf
-        self.buf = ""
+        self.buf = b""
         return res
 
     def read_all(self, timeout=None):
@@ -146,7 +158,7 @@ class AbstractSock(object):
         """
         self.read_cond(lambda x: x.eof, timeout)
         res = self.buf
-        self.buf = ""
+        self.buf = b""
         return res
 
     def skip_until(self, s, timeout=None):
@@ -154,6 +166,7 @@ class AbstractSock(object):
         Skip everything until first occurence of string @s, stop before occurence.
         Return nothing.
         """
+        s = Bytes(s)
         self.read_cond(lambda x: s in x.buf, timeout)
         start = self.buf.find(s)
         self.buf = self.buf[start:]
@@ -164,7 +177,9 @@ class AbstractSock(object):
         Skip everything until first match of regexp @r, stop before match.
         Return match.
         """
-        match = self.read_cond(lambda x: re.search(r, x.buf, flags=flags), timeout)
+        r = Bytes(r)
+        match = self.read_cond(
+            lambda x: re.search(r, x.buf, flags=flags), timeout)
         self.buf = self.buf[match.start():]
         return match if len(match.groups()) > 1 else match.group(len(match.groups()))
 
@@ -173,6 +188,7 @@ class AbstractSock(object):
         Read everything until first occurence of string @s, stop after occurence.
         Return everything before @s, and @s.
         """
+        s = Bytes(s)
         self.read_cond(lambda x: s in x.buf, timeout)
         end = self.buf.find(s) + len(s)
         res = self.buf[:end]
@@ -187,6 +203,7 @@ class AbstractSock(object):
             r1 = r"(\d) coins"
             r2 = r"(.*?)(\d coins)"
         """
+        r = Bytes(r)
         match = self.read_cond(lambda x: re.search(r, x.buf, flags=flags), timeout)
         self.buf = self.buf[match.end():]
         return match if len(match.groups()) > 1 else match.group(len(match.groups()))
@@ -285,10 +302,38 @@ class AbstractSock(object):
     def __del__(self):
         self.sock.close()
 
-    def interact(self):
+    def interact_telnet(self):
         t = telnetlib.Telnet()
+        sys.stdout.buffer.write(self.buf)
         t.sock = self.sock
         return t.interact()
+
+    def interact(self):
+        # copied from Telnetlib with minor fixes
+        import selectors
+        _TelnetSelector = selectors.SelectSelector
+
+        sys.stdout.buffer.write(self.buf)
+        with _TelnetSelector() as selector:
+            selector.register(self.sock, selectors.EVENT_READ)
+            selector.register(sys.stdin, selectors.EVENT_READ)
+
+            while True:
+                for key, events in selector.select():
+                    if key.fileobj is self.sock:
+                        try:
+                            text = self.read_one()
+                        except EOFError:
+                            print('*** Connection closed by remote host ***')
+                            return
+                        if text:
+                            sys.stdout.buffer.write(text)
+                            sys.stdout.flush()
+                    elif key.fileobj is sys.stdin:
+                        line = sys.stdin.readline().encode('ascii')
+                        if not line:
+                            return
+                        self.send(line)
 
 
 class IPv4Mixin(object):
@@ -310,6 +355,12 @@ class TCPMixIn(object):
 
     def send(self, s):
         return self.sock.sendall(s)
+
+
+class SSLMixIn(TCPMixIn):
+    def _connect(self):
+        TCPMixIn._connect(self)
+        self.sock = ssl.wrap_socket(self.sock)
 
 
 class UDPMixIn(object):
@@ -344,6 +395,13 @@ class SockU(UDPMixIn, IPv4Mixin, AbstractSock):
 class SockU6(UDPMixIn, IPv6Mixin, AbstractSock):
     pass
 
+
+class SSLSock(SSLMixIn, IPv4Mixin, AbstractSock):
+    pass
+
+
+class SSLSock6(SSLMixIn, IPv6Mixin, AbstractSock):
+    pass
 
 toSock = Sock.from_socket
 toSockU = SockU.from_socket
