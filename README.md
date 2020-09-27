@@ -1,16 +1,19 @@
 # sock
 
 Small script to simplify network communication.
-Something like telnetlib http://docs.python.org/library/telnetlib.html, but for clean TCP/UDP (no command sequences, \r\n newlines, etc.)
 
+Something like [telnetlib](http://docs.python.org/library/telnetlib.html), but for clean TCP/UDP (no command sequences, \r\n newlines, etc.)
+
+As an alternative, consider [pwntools](http://pwntools.com/) which contains unified interface (tubes) for communications with sockets, processes, etc. See [tubes API](http://pwntools.com/).
+
+Current development only supports python 3. Old python 2 version is available at the py2 branch.
 
 ## Usage
 
 ### TCP Client
 
 ```python
-from sock import * # python2
-from sock3 import * # python3
+from sock import *
 
 f = Sock("some.cool.servi.ce:3123", timeout=10)
 # or IPv6
@@ -41,18 +44,18 @@ assert result1 == result2
 f.send_line("random please")
 
 # read one packet and flush buffers
-print f.read_one()
+print(f.read_one())
 
 # non-blocking read (flush buffers)
-print f.read_one(0)
+print(f.read_one(0))
 
 # read until disconnect
-print f.read_all()
+print(f.read_all())
 ```
 
 About
 ---------------------
 
-Author: hellman ( hellman1908@gmail.com )
+Author: hellman
 
-License: MIT License (http://opensource.org/licenses/MIT)
+License: [MIT License](http://opensource.org/licenses/MIT)
