@@ -13,6 +13,7 @@ classifiers = [
     'License :: OSI Approved :: MIT License',
     'Topic :: System :: Networking',
 ]
+include = ["CHANGELOG.md"]
 
 [tool.poetry.urls]
 homepage = "http://github.com/hellman/sock"
