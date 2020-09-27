@@ -302,7 +302,7 @@ class AbstractSock(object):
     def interact_telnet(self):
         sys.stdout.buffer.write(self.buf)
         self.buf = b""
-   
+
         t = telnetlib.Telnet()
         t.sock = self.sock
         return t.interact()
@@ -314,7 +314,7 @@ class AbstractSock(object):
 
         sys.stdout.buffer.write(self.buf)
         self.buf = b""
-        
+
         with _TelnetSelector() as selector:
             selector.register(self.sock, selectors.EVENT_READ)
             selector.register(sys.stdin, selectors.EVENT_READ)
@@ -356,13 +356,6 @@ class TCPMixIn(object):
 
     def send(self, s):
         return self.sock.sendall(Bytes(s))
-
-
-class SSLMixIn(TCPMixIn):
-    def _connect(self):
-        TCPMixIn._connect(self)
-        self.sock = ssl.wrap_socket(self.sock)
-
 
 class SSLMixIn(TCPMixIn):
     def _connect(self):
