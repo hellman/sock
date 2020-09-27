@@ -1,7 +1,5 @@
-#!/usr/bin/env python
-#-*- coding:utf-8 -*-
-
 import re
+import ssl
 import socket
 import telnetlib
 
@@ -312,6 +310,12 @@ class TCPMixIn(object):
         return self.sock.sendall(s)
 
 
+class SSLMixIn(TCPMixIn):
+    def _connect(self):
+        TCPMixIn._connect(self)
+        self.sock = ssl.wrap_socket(self.sock)
+
+
 class UDPMixIn(object):
     SOCKET_TYPE = socket.SOCK_DGRAM
 
@@ -344,6 +348,13 @@ class SockU(UDPMixIn, IPv4Mixin, AbstractSock):
 class SockU6(UDPMixIn, IPv6Mixin, AbstractSock):
     pass
 
+
+class SSLSock(SSLMixIn, IPv4Mixin, AbstractSock):
+    pass
+
+
+class SSLSock6(SSLMixIn, IPv6Mixin, AbstractSock):
+    pass
 
 toSock = Sock.from_socket
 toSockU = SockU.from_socket
