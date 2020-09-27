@@ -8,6 +8,14 @@ As an alternative, consider [pwntools](http://pwntools.com/) which contains unif
 
 Current development only supports python 3. Old python 2 version is available at the py2 branch.
 
+## Installation
+
+```bash
+$ pip3 install sock
+```
+
+For development or building from this repository, [poetry](https://python-poetry.org/) is needed.
+
 ## Usage
 
 ### TCP Client
@@ -52,6 +60,7 @@ print(f.read_one(0))
 # read until disconnect
 print(f.read_all())
 ```
+
 
 About
 ---------------------
