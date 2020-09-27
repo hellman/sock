@@ -19,7 +19,7 @@ def Str(s):
 
 __all__ = "Sock Sock6 toSock SockU SockU6 toSockU Timeout SocketError".split()
 
-DEFAULT_TIMEOUT = 10
+DEFAULT_TIMEOUT = 30
 PORT_REGEXP = re.compile(r"(:| |;|/|\|)+(?P<port>\d+)$")
 
 '''
@@ -29,7 +29,6 @@ TODO:
 - read_until(_re) accept list also
 - think about losing socket data on EOFError
 - quick fail mode? if exploit fails, read_until("$ ") will wait the whole timeout;
-- pexpect like read_until ( https://pexpect.readthedocs.org/en/latest/api/pexpect.html )
 '''
 
 
@@ -301,9 +300,10 @@ class AbstractSock(object):
         self.sock.close()
 
     def interact_telnet(self):
-        t = telnetlib.Telnet()
         sys.stdout.buffer.write(self.buf)
         self.buf = b""
+   
+        t = telnetlib.Telnet()
         t.sock = self.sock
         return t.interact()
 
@@ -314,6 +314,7 @@ class AbstractSock(object):
 
         sys.stdout.buffer.write(self.buf)
         self.buf = b""
+        
         with _TelnetSelector() as selector:
             selector.register(self.sock, selectors.EVENT_READ)
             selector.register(sys.stdin, selectors.EVENT_READ)
@@ -330,7 +331,7 @@ class AbstractSock(object):
                             sys.stdout.buffer.write(text)
                             sys.stdout.flush()
                     elif key.fileobj is sys.stdin:
-                        line = sys.stdin.readline()#.encode('ascii')
+                        line = sys.stdin.readline()
                         if not line:
                             return
                         self.send(line)
@@ -355,6 +356,12 @@ class TCPMixIn(object):
 
     def send(self, s):
         return self.sock.sendall(Bytes(s))
+
+
+class SSLMixIn(TCPMixIn):
+    def _connect(self):
+        TCPMixIn._connect(self)
+        self.sock = ssl.wrap_socket(self.sock)
 
 
 class SSLMixIn(TCPMixIn):
