@@ -20,6 +20,7 @@ homepage = "http://github.com/hellman/sock"
 
 [tool.poetry.dependencies]
 python = "^3.4"
+websocket_client = "^0.57.0"
 
 [tool.poetry.dev-dependencies]
 

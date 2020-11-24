@@ -2,6 +2,7 @@ import re
 import ssl
 import sys
 import socket
+import websocket
 import telnetlib
 
 from time import time
@@ -417,44 +418,41 @@ class UDPMixIn(object):
     def send(self, s):
         return self.sock.sendto(s, self.addr)
 
-try:
-    import websocket
 
-    class MyWebSocket(websocket.WebSocket):
-        def __init__(self, *args, **kwargs):
-            self.buf = b''
-            super(MyWebSocket, self).__init__(*args, **kwargs)
-        
-        def setblocking(self, val):
-            pass
-
-        def recvbytes(self, bufsize):
-            self.buf += self.recv()
-            r = self.buf[:bufsize]
-            self.buf = self.buf[bufsize:]
-
-            return r
-            
-    class WebSocketMixIn(object):
-        
-        SOCKET_TYPE = socket.SOCK_STREAM
-
-        def _init_sock(self):
-            self.sock = websocket.create_connection(self.addr, timeout=self.timeout, class_=MyWebSocket)
-
-        def _connect(self):
-            pass
-
-        def recv(self, bufsize):
-            return self.sock.recvbytes(bufsize)
-
-        def send(self, s):
-            return self.sock.send_binary(Bytes(s))
-
-    class WebSock(WebSocketMixIn, AbstractSock, AbstractPwnlibTubes):
+class MyWebSocket(websocket.WebSocket):
+    def __init__(self, *args, **kwargs):
+        self.buf = b''
+        super(MyWebSocket, self).__init__(*args, **kwargs)
+    
+    def setblocking(self, val):
         pass
 
-except ModuleNotFoundError:
+    def recvbytes(self, bufsize):
+        self.buf += self.recv()
+        r = self.buf[:bufsize]
+        self.buf = self.buf[bufsize:]
+
+        return r
+
+
+class WebSocketMixIn(object):
+    
+    SOCKET_TYPE = socket.SOCK_STREAM
+
+    def _init_sock(self):
+        self.sock = websocket.create_connection(self.addr, timeout=self.timeout, class_=MyWebSocket)
+
+    def _connect(self):
+        pass
+
+    def recv(self, bufsize):
+        return self.sock.recvbytes(bufsize)
+
+    def send(self, s):
+        return self.sock.send_binary(Bytes(s))
+
+
+class WebSock(WebSocketMixIn, AbstractSock, AbstractPwnlibTubes):
     pass
 
 
