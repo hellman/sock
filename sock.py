@@ -60,6 +60,9 @@ def parse_addr(addr, port=None):
         _port = int(addr[1])
 
     elif isinstance(addr, str):
+        if addr.startswith("ws://") or addr.startswith("wss://"):
+            return addr
+
         match = PORT_REGEXP.search(addr.strip())
         if match:
             _host = addr[:match.start()]
@@ -97,8 +100,7 @@ class AbstractSock(object):
         self.buf = b""
         self.eof = False
 
-        self.sock = socket.socket(self.SOCKET_FAMILY, self.SOCKET_TYPE)
-        self.sock.settimeout(self.timeout)
+        self._init_sock()
         self._connect()
         return
 
@@ -119,6 +121,10 @@ class AbstractSock(object):
         self.buf = b""
         self.eof = False
         return self
+
+    def _init_sock(self):
+        self.sock = socket.socket(self.SOCKET_FAMILY, self.SOCKET_TYPE)
+        self.sock.settimeout(self.timeout)
 
     def _connect(self):
         return NotImplemented
@@ -336,6 +342,38 @@ class AbstractSock(object):
                             return
                         self.send(line)
 
+# pwnlib.tubes method name style
+class AbstractPwnlibTubes(object):
+    def recvall(self, *args, **kwargs):
+        return self.read_all(*args, **kwargs)
+    
+    def recvline(self, *args, **kwargs):
+        return self.read_line(*args, **kwargs)
+
+    def recvuntil(self, *args, **kwargs):
+        return self.read_until(*args, **kwargs)
+
+    def recvregex(self, *args, **kwargs):
+        return self.read_until_re(*args, **kwargs)
+
+    def sendline(self, *args, **kwargs):
+        return self.send_line(*args, **kwargs)
+
+    def readall(self, *args, **kwargs):
+        return self.recvall(*args, **kwargs)
+    
+    def readline(self, *args, **kwargs):
+        return self.recvline(*args, **kwargs)
+    
+    def readuntil(self, *args, **kwargs):
+        return self.recvuntil(*args, **kwargs)
+
+    def readregex(self, *args, **kwargs):
+        return self.recvregex(*args, **kwargs)
+
+    def interactive(self, *args, **kwargs):
+        return self.interact(*args, **kwargs)
+    
 
 class IPv4Mixin(object):
     SOCKET_FAMILY = socket.AF_INET
@@ -379,28 +417,68 @@ class UDPMixIn(object):
     def send(self, s):
         return self.sock.sendto(s, self.addr)
 
+try:
+    import websocket
 
-class Sock(TCPMixIn, IPv4Mixin, AbstractSock):
+    class MyWebSocket(websocket.WebSocket):
+        def __init__(self, *args, **kwargs):
+            self.buf = b''
+            super(MyWebSocket, self).__init__(*args, **kwargs)
+        
+        def setblocking(self, val):
+            pass
+
+        def recvbytes(self, bufsize):
+            self.buf += self.recv()
+            r = self.buf[:bufsize]
+            self.buf = self.buf[bufsize:]
+
+            return r
+            
+    class WebSocketMixIn(object):
+        
+        SOCKET_TYPE = socket.SOCK_STREAM
+
+        def _init_sock(self):
+            self.sock = websocket.create_connection(self.addr, timeout=self.timeout, class_=MyWebSocket)
+
+        def _connect(self):
+            pass
+
+        def recv(self, bufsize):
+            return self.sock.recvbytes(bufsize)
+
+        def send(self, s):
+            return self.sock.send_binary(Bytes(s))
+
+    class WebSock(WebSocketMixIn, AbstractSock, AbstractPwnlibTubes):
+        pass
+
+except ModuleNotFoundError:
     pass
 
 
-class Sock6(TCPMixIn, IPv6Mixin, AbstractSock):
+class Sock(TCPMixIn, IPv4Mixin, AbstractSock, AbstractPwnlibTubes):
     pass
 
 
-class SockU(UDPMixIn, IPv4Mixin, AbstractSock):
+class Sock6(TCPMixIn, IPv6Mixin, AbstractSock, AbstractPwnlibTubes):
     pass
 
 
-class SockU6(UDPMixIn, IPv6Mixin, AbstractSock):
+class SockU(UDPMixIn, IPv4Mixin, AbstractSock, AbstractPwnlibTubes):
     pass
 
 
-class SSLSock(SSLMixIn, IPv4Mixin, AbstractSock):
+class SockU6(UDPMixIn, IPv6Mixin, AbstractSock, AbstractPwnlibTubes):
     pass
 
 
-class SSLSock6(SSLMixIn, IPv6Mixin, AbstractSock):
+class SSLSock(SSLMixIn, IPv4Mixin, AbstractSock, AbstractPwnlibTubes):
+    pass
+
+
+class SSLSock6(SSLMixIn, IPv6Mixin, AbstractSock, AbstractPwnlibTubes):
     pass
 
 toSock = Sock.from_socket

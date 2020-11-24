@@ -4,7 +4,7 @@ import unittest
 
 from itertools import product
 
-from sock import parse_addr, Sock, Sock6, SockU, SockU6
+from sock import parse_addr, Sock, Sock6, SockU, SockU6, WebSock
 
 
 class TestParseAddr(unittest.TestCase):
@@ -48,13 +48,13 @@ class TestConnects(unittest.TestCase):
         for host in self.HTTP_HOSTS:
             f = Sock(host, 80)
             f.send("GET / HTTP/1.1\r\n\r\n")
-            line = f.read_line()
+            line = f.read_line().decode()
             self.assertTrue(line.startswith("HTTP/1.1 "))
             f.close()
 
     def test_dns(self):
-        query = "241a010000010000000000000377777706676f6f676c6503636f6d0000010001".decode("hex")
-        marker = "\x03www\x06google\x03com"
+        query = bytes.fromhex("241a010000010000000000000377777706676f6f676c6503636f6d0000010001")
+        marker = b"\x03www\x06google\x03com"
         for host in self.DNS_HOSTS:
             f = SockU(host, 53)
             f.send(query)
@@ -62,6 +62,12 @@ class TestConnects(unittest.TestCase):
             self.assertIn(marker, line)
             f.close()
 
+    def test_websocket(self):
+        msg = b"test echo\n"
+        f = WebSock("wss://echo.websocket.org/")
+        f.send(msg)
+        rmsg = f.read_line()
+        self.assertEqual(rmsg, msg)
 
 if __name__ == "__main__":
     unittest.main()
