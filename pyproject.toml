@@ -8,9 +8,6 @@ readme = "README.md"
 keywords = ["socket", "telnet", "network"]
 classifiers = [
     'Intended Audience :: Developers',
-    'Operating System :: Unix',
-    'Programming Language :: Python :: 3',
-    'License :: OSI Approved :: MIT License',
     'Topic :: System :: Networking',
 ]
 include = ["CHANGELOG.md"]
