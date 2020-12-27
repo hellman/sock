@@ -30,6 +30,9 @@ f = Sock6("::1 3123", timeout=3)
 f = Sock.from_socket(some_socket)  # or toSock(some_socket)
 # or UDP/IPv6
 f = SockU6("::1 3123", timeout=3)
+# or WebSocket
+# For using WebSock, the websocket-client module must be installed (pip install websocket-client).
+f = WebSock("ws://localhost:3123")
 
 # wait for prompt (skip banner for example)
 # the prompt itself will be skipped (and returned) too

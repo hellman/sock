@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sock"
-version = "0.5.0"
+version = "0.6.0"
 description = "Small script to simplify network communication"
 authors = ["hellman"]
 license = "MIT"
@@ -20,6 +20,7 @@ homepage = "http://github.com/hellman/sock"
 
 [tool.poetry.dependencies]
 python = "^3.4"
+websocket_client = "^0.57.0"
 
 [tool.poetry.dev-dependencies]
 
